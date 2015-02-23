@@ -1,0 +1,4 @@
+submit.sh.*
+qsub*
+*.eps
+*.gif

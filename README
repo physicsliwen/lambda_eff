@@ -1,0 +1,1 @@
+1. Attention, the qsub_script_la.csh can only be written in csh??? Need to run $GROUP_DIR/group_env.sh to set the environment variable. 
