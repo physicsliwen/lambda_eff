@@ -5,16 +5,19 @@
 #include <iostream>
 #include <fstream>
 #include <TAxis.h>
-void plot_eff(char* particle_name){
+void plot_eff(string particle_name){
    gStyle -> SetPadTickX(1);
    gStyle -> SetPadTickY(1);
    gStyle -> SetTitleX(0.5);
    gStyle -> SetTitleAlign(23);
    gStyle -> SetNdivisions(505);
 
-   char par_nm[100];
-   char infile_nm_exp[100];
-   char infile_nm_fp[100];
+   string par_nm;
+   //char infile_nm_exp[100];
+   //char infile_nm_fp[100];
+   string infile_nm_exp;
+   string infile_nm_fp;
+   //strncpy(par_nm, particle_name, 100);
    par_nm = particle_name;
 
    if(particle_name == "Lambda"){
@@ -31,10 +34,12 @@ void plot_eff(char* particle_name){
    }
 
    //ifstream infile_anti("../Ks0_Analysis/weight_ks_fp.txt"); 
-   ifstream infile_exp(infile_nm_exp); 
-   ifstream infile_fp(infile_nm_fp); 
+   ifstream infile_exp(infile_nm_exp.c_str()); 
+   ifstream infile_fp(infile_nm_fp.c_str()); 
    float efficiency_exp[9][10] = {0,};
+   float efficiency_exp_ori[9][10] = {0,};
    float efficiency_fp[9][10] = {0,};
+   float efficiency_fp_ori[9][10] = {0,};
    int centbin = 0;
    int ptbin = 0;
    double dumb = 0.;
@@ -59,6 +64,7 @@ void plot_eff(char* particle_name){
         infile_exp >> eff_exp;
         infile_exp >> efferr_exp;
         efficiency_exp[centbin][ptbin-1] = eff_exp*pow(10, -centbin);
+        efficiency_exp_ori[centbin][ptbin-1] = eff_exp;
         //printf("centbin %d ptbin %d efficiency is %f\n", centbin, ptbin, eff);
    } 
 
@@ -71,6 +77,7 @@ void plot_eff(char* particle_name){
         infile_fp >> eff_fp;
         infile_fp >> efferr_fp;
         efficiency_fp[centbin][ptbin-1] = eff_fp*pow(10, -centbin);
+        efficiency_fp_ori[centbin][ptbin-1] = eff_exp;
         //printf("centbin %d ptbin %d efficiency is %f\n", centbin, ptbin, eff);
    } 
 
@@ -92,7 +99,7 @@ void plot_eff(char* particle_name){
        gr_exp -> SetMarkerSize(1.45);
        gr_exp -> SetMarkerColor(2);
        gr_exp -> SetMarkerStyle(29);
-       mg -> Add(gr_exp); 
+       mg -> Add(gr_exp);
    }
 
    for(int i = 0; i < 9; i++){
@@ -130,6 +137,69 @@ void plot_eff(char* particle_name){
    leg -> Draw("same");
 
    char fig_nm[100];
-   sprintf(fig_nm, "plot_exp_vs_fp_%s.eps", par_nm);
+   sprintf(fig_nm, "plot_exp_vs_fp_%s.eps", par_nm.c_str());
    c1 -> SaveAs(fig_nm);
+
+//===========Fit the Function to the Plots===================================
+
+   TCanvas* c2 = new TCanvas("c2", "c2", 800, 600);  
+   c2 -> SetLogy();
+   TMultiGraph* mg1 = new TMultiGraph(); 
+   char mg1_title[100];
+   if(par_nm == "Lambda"){
+       mg1 -> SetTitle("#Lambda Efficiency in AuAu 200GeV");
+   }
+   else{
+       mg1 -> SetTitle("#bar{#Lambda} Efficiency in AuAu 200GeV");
+   }
+
+   TF1* erf = new TF1("erf", "[0]*TMath::Erf(x-[1])+[2]", 0.5, 3.0);   
+   double par[9][3];
+   for(int i = 0; i < 9; i++){
+       TGraph* gr_exp = new TGraph(10, ptx, efficiency_exp[i]);
+       TGraph* gr_exp_ori = new TGraph(10, ptx, efficiency_exp_ori[i]);
+       gr_exp -> SetMarkerSize(1.45);
+       gr_exp -> SetMarkerColor(2);
+       gr_exp -> SetMarkerStyle(29);
+       mg1 -> Add(gr_exp);
+       gr_exp_ori -> Fit(erf, "R0");
+       erf -> GetParameters(par[i]); 
+       std::cout<<"[0]="<<par[i][0]<<" [1]="<<par[i][1]<<" [2]="<<par[i][2]<<std::endl;
+   }
+   mg1 -> Draw("ap");
+   mg1 -> GetXaxis() -> SetTitle("Pt(GeV/c)");
+   mg1 -> GetYaxis() -> SetTitle("Efficiency");
+   mg1 -> GetYaxis() -> SetRangeUser(pow(10, -11), 1000);
+   gPad -> Update();
+
+   char eff_fit_output[100];
+   sprintf(eff_fit_output, "eff_fit_par_%s.dat", particle_name.c_str());
+   ofstream eff_fit(eff_fit_output);
+   for(int i = 0; i < 9; i++){
+       TF1* erf_temp = new TF1("erf_temp", "[0]*TMath::Erf(x-[1])+[2]", 0.5, 3.0);
+       erf_temp -> SetParameter(0, pow(10, -i)*par[i][0]); 
+       erf_temp -> SetParameter(1, par[i][1]); 
+       erf_temp -> SetParameter(2, pow(10, -i)*par[i][2]); 
+       erf_temp -> SetLineColor(1);
+       erf_temp -> SetLineStyle(2);
+       erf_temp -> Draw("sames");
+       eff_fit << par[i][0] << " " << par[i][1] << " " << par[i][2] <<std::endl;
+   }
+   eff_fit.close();
+   gPad -> Update();
+   
+   TLegend* leg1 = new TLegend(0.45, 0.75, 0.7, 0.87);
+   TGraph* graph_temp_1 = (TGraph*)mg1 -> GetListOfGraphs() -> At(2);
+   TF1* erf_temp = new TF1("erf_temp", "[0]*TMath::Erf(x-[1])+[2]", 0.5, 3.0);
+   erf_temp -> SetLineColor(1);
+   erf_temp -> SetLineStyle(2);
+
+   leg1 -> AddEntry(graph_temp_1, "Efficiency", "p");
+   leg1 -> AddEntry(erf_temp, "Error Function", "l");
+   leg1 -> SetBorderSize(0);
+   leg1 -> Draw("same");
+
+   char fit_fig_nm[100];
+   sprintf(fit_fig_nm, "%s_fit_plot.eps", particle_name.c_str()); 
+   c2 -> SaveAs(fit_fig_nm);
 }
