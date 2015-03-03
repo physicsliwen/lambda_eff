@@ -204,7 +204,8 @@ void plot_eff(string particle_name){
     sprintf(fit_fig_nm, "%s_fit_plot.eps", particle_name.c_str()); 
     c2 -> SaveAs(fit_fig_nm);
 
-//===============================Hadron(Proton) Efficiency=========================
+//===============================ChargedHadron Efficiency=========================
+/*
     TCanvas* can_hadron = new TCanvas("can_hadron", "can_hadron", 800, 600);
     can_hadron -> SetLogy();
     can_hadron -> cd();
@@ -240,9 +241,53 @@ void plot_eff(string particle_name){
     TF1* eff_h_func_temp = new TF1("eff_h_func_temp", "[0]*exp(-pow([1]/[2], [3]))", 0.5, 3.0); 
     eff_h_func_temp -> SetLineColor(2);
     eff_h_func_temp -> SetLineStyle(2);
+    leg2 -> AddEntry(eff_h_func_temp, "Efficiency of Hadron for AuAu 200GeV", "l");
+    leg2 -> SetBorderSize(0);
+    leg2 -> Draw("same");
+    string fit_fig_nm_proton = "eff_fit_hadron.eps";
+    can_hadron -> SaveAs(fit_fig_nm_proton.c_str());
+*/
+//
+//proton
+    const float PP0_p[9] = {8.34058e-01, 8.25413e-01, 8.22940e-01, 8.04891e-01, 7.82275e-01, 7.48725e-01, 6.95289e-01, 6.39002e-01, 5.92620e-01};
+    const float PP1_p[9] = {2.21669e-01, 2.21665e-01, 2.20418e-01, 2.20119e-01, 2.29666e-01, 2.37363e-01, 2.51459e-01, 2.70402e-01, 2.92236e-01};
+    const float PP2_p[9] = {4.01159e+00, 4.90812e+00, 3.75870e+00, 3.98066e+00, 3.80689e+00, 3.55189e+00, 3.27993e+00, 3.14307e+00, 3.07804e+00};
+
+    TCanvas* can_proton = new TCanvas("can_proton", "can_proton", 800, 600);
+    can_proton -> SetLogy();
+    can_proton -> cd();
+    TH2F* h2_blank_p = new TH2F("h2_blank_p", "h2_blank_p", 100, 0.5, 3.0, 100, pow(10, -11), 1000);
+    h2_blank_p -> Draw();
+    h2_blank_p -> SetTitle("Proton Efficiency");
+    //TMultiGraph* mg2 = new TMultiGraph(); 
+    //mg2 -> SetTitle("Proton Efficiency");
+    //mg2 -> Draw("a");
+    //mg2 -> GetYaxis() -> SetRangeUser(pow(10, -11), 1000);
+    float eff_proton[9][10];
+    for(int cen = 0; cen < 9; cen++){
+	for(int ptbin = 0; ptbin < 10; ptbin++){
+	    eff_proton[cen][ptbin] = PP0_p[cen]*exp(-pow(PP1_p[cen]/ptx[ptbin],PP2_p[cen]));
+            std::cout<<(cen)<<" "<<ptbin<<" "<<eff_proton[cen][ptbin]<<"===================>"<<std::endl;
+	}
+    }
+    for(int i = 0; i < 9; i++){
+        TF1* eff_h_func = new TF1("eff_h_func", "[0]*exp(-pow([1]/x, [2]))", 0.5, 3.0); 
+        eff_h_func -> SetParameter(0, pow(10,-i)*PP0_p[i]);
+        eff_h_func -> SetParameter(1, PP1_p[i]);
+        eff_h_func -> SetParameter(2, PP2_p[i]);
+        eff_h_func -> SetLineColor(2);
+        eff_h_func -> SetLineStyle(2);
+        //if(i == 0) eff_h_func -> Draw();
+        // else 
+        eff_h_func -> Draw("sames");
+    }
+    TLegend* leg2 = new TLegend(.45, .75, .8, .87);
+    TF1* eff_h_func_temp = new TF1("eff_h_func_temp", "[0]*exp(-pow([1]/[2], [3]))", 0.5, 3.0); 
+    eff_h_func_temp -> SetLineColor(2);
+    eff_h_func_temp -> SetLineStyle(2);
     leg2 -> AddEntry(eff_h_func_temp, "Efficiency of Proton for AuAu 200GeV", "l");
     leg2 -> SetBorderSize(0);
     leg2 -> Draw("same");
     string fit_fig_nm_proton = "eff_fit_proton.eps";
-    can_hadron -> SaveAs(fit_fig_nm_proton.c_str());
+    can_proton -> SaveAs(fit_fig_nm_proton.c_str());
 }
